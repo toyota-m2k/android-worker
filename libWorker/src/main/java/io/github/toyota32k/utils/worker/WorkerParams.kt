@@ -8,7 +8,7 @@ import androidx.work.Data
  * - コンストラクタに データインスタンス（inputData）を渡すと、inputDataからの読み出し用に初期化される（Worker内で、パラメータを取り出すために利用する）
  *
  */
-abstract class WorkerParams(inputData: Data?) {
+abstract class  WorkerParams(inputData: Data?) {
     protected val delegate = WorkerDataDelegate(inputData)
     val forConsumer get():Boolean = delegate.data != null
     val forProducer get():Boolean = delegate.data == null

@@ -1,3 +1,9 @@
 <resources>
     <string name="app_name">worker</string>
+    <string name="cancel">Cancel</string>
+    <string name="duration_title">Duration</string>
+    <string name="in_proc_worker_demo">InProcWorker Demo</string>
+    <string name="in_proc_fg_worker_demo">InProcForegroundWorker Demo</string>
+    <string name="ut_task_worker_demo">UtTaskWorker Demo</string>
+    <string name="ut_task_worker_fg_demo">UtTaskWorker+Foreground Demo</string>
 </resources>

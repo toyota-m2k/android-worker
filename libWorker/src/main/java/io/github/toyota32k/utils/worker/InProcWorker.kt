@@ -28,7 +28,7 @@ import java.util.UUID
  */
 class InProcWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params)  {
     companion object {
-        val logger = UtLog("RestrictiveWorker")
+        val logger = UtLog("InProcWorker")
 
         interface IWorkerEntry {
             suspend fun execute()
@@ -46,7 +46,7 @@ class InProcWorker(context: Context, params: WorkerParameters) : CoroutineWorker
         }
 
         val workerMap = mutableMapOf<String, IWorkerEntry>()
-        const val KEY_WORKER_KEY = "RW_UUID"
+        const val KEY_WORKER_KEY = "IPW_UUID"
 
         fun generateUniqueKey():String {
             while (true) {
@@ -55,7 +55,7 @@ class InProcWorker(context: Context, params: WorkerParameters) : CoroutineWorker
             }
         }
 
-        suspend inline fun <reified T>  withInProcWorker(context:Context, noinline action:suspend ()->T):T {
+        suspend inline fun <reified T>  inProcWorker(context:Context, noinline action:suspend ()->T):T {
             val uuid = generateUniqueKey()
             val entry = WorkerEntry<T>(action)
             workerMap[uuid] = entry

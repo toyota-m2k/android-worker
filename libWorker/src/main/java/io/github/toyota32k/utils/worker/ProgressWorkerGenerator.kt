@@ -63,6 +63,7 @@ interface IWorkerAwaiter : IAwaiter<Boolean> {
  * - fun progress() 進捗をProgressAwaiterに送信する --> ProgressWorkerGeneratorに渡した onProgress ハンドラで受け取る
  * - fun customEvent() 任意のDataをProgressAwaiterに送信する --> ProgressWorkerGeneratorに渡した onCustomEvent ハンドラで受け取る
  */
+@Deprecated("use InProcWorker instead")
 abstract class ProgressWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
     companion object {
         const val PROGRESS_TOTAL_LENGTH = "total_length"
@@ -85,6 +86,7 @@ abstract class ProgressWorker(context: Context, params: WorkerParameters) : Coro
 /**
  * ProgressWorkerを生成・実行するためのヘルパークラス。
  */
+@Deprecated("use InProcWorker/UtTaskWorker instead")
 object ProgressWorkerGenerator {
     val logger = UtLog("PWG", UtLib.logger)
 
