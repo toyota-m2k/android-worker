@@ -44,8 +44,14 @@ class NotificationProcessor(
         icon: Int,
         onGoing:Boolean=true): NotificationCompat.Builder {
         return NotificationCompat.Builder(applicationContext, channelId)
-            .setContentTitle(title)
-            .setContentText(text)
+            .apply {
+                if (title.isNotEmpty()) {
+                    setContentTitle(title)
+                }
+                if( text.isNotEmpty()) {
+                    setContentText(text)
+                }
+            }
             .setSmallIcon(icon)
             .setOngoing(onGoing) // ユーザーがスワイプで消せないようにする
     }
@@ -63,12 +69,8 @@ class NotificationProcessor(
         progressInPercent: Int,
         onGoing:Boolean=true
     ): NotificationCompat.Builder {
-        return NotificationCompat.Builder(applicationContext, channelId)
-            .setContentTitle(title)
-            .setContentText(text)
-            .setSmallIcon(icon)
+        return message(title, text, icon, onGoing)
             .setProgress(100, progressInPercent, false) // プログレスバーを表示
-            .setOngoing(onGoing) // 完了するまではユーザーがスワイプで消せないようにする
     }
     fun progress(
         title: String,
