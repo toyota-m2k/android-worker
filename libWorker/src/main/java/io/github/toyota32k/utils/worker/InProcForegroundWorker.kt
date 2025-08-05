@@ -19,16 +19,6 @@ import kotlin.coroutines.cancellation.CancellationException
 
 class InProcForegroundWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params)  {
     companion object {
-        interface INotificationSink {
-            fun notify(
-                completed:Boolean,          // 処理が完了するときは trueにする（-->ユーザーがスワイプして通知を消すことができる）
-                title:String?=null,         // nullのときは初期値（ForegroundWorkerParams#notificationTitle)を使用
-                text:String?=null,          // nullのときは初期値（ForegroundWorkerParams#notificationText)を使用
-                icon:Int=-1,                // -1のときは初期値（ForegroundWorkerParams#notificationIcon)を使用
-                progressInPercent:Int=-1    // -1のときは進捗なし。0-100のときは進捗を表示する。
-            )
-            fun notify(completed:Boolean, prepare:(NotificationCompat.Builder)->Unit)
-        }
         interface IForegroundWorkerEntry {
             suspend fun execute(notificationSink: INotificationSink)
         }
@@ -135,6 +125,22 @@ class InProcForegroundWorker(context: Context, params: WorkerParameters) : Corou
         }
     }
 
+    interface INotificationSink {
+        fun message(
+            completed:Boolean,          // 処理が完了するときは trueにする（-->ユーザーがスワイプして通知を消すことができる）
+            title:String?=null,         // nullのときは初期値（ForegroundWorkerParams#notificationTitle)を使用
+            text:String?=null,          // nullのときは初期値（ForegroundWorkerParams#notificationText)を使用
+            icon:Int=-1,                // -1のときは初期値（ForegroundWorkerParams#notificationIcon)を使用
+        )
+        fun progress(
+            completed:Boolean,          // 処理が完了するときは trueにする（-->ユーザーがスワイプして通知を消すことができる）
+            progressInPercent: Int,     // 進捗 (0-100)
+            title:String?=null,         // nullのときは初期値（ForegroundWorkerParams#notificationTitle)を使用
+            text:String?=null,          // nullのときは初期値（ForegroundWorkerParams#notificationText)を使用
+            icon:Int=-1,                // -1のときは初期値（ForegroundWorkerParams#notificationIcon)を使用
+        )
+    }
+
     /**
      * Foreground通知関連のパラメータをWorkerに引き渡すためのWorkerParamsクラス。
      * @param inputData Workerから渡されるDataオブジェクト。
@@ -199,28 +205,6 @@ class InProcForegroundWorker(context: Context, params: WorkerParameters) : Corou
         }
     }
 
-//    private fun createNotification(channelId:String, channelName:String): Notification {
-//
-//        // Android 8.0 (API 26)以降は通知チャンネルが必要
-//        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-//            val channel = NotificationChannel(
-//                channelId,
-//                channelName,
-//                NotificationManager.IMPORTANCE_HIGH
-//            )
-//            val notificationManager = applicationContext.getSystemService(NotificationManager::class.java)
-//            notificationManager.createNotificationChannel(channel)
-//        }
-//
-//        return NotificationCompat.Builder(applicationContext, channelId)
-//            .setContentTitle("ファイルの転送中")
-//            .setContentText("ダウンロード/アップロードを実行しています...")
-//            .setSmallIcon(android.R.drawable.stat_sys_upload)
-//            .setOngoing(true) // ユーザーがスワイプで消せないようにする
-//            .build()
-//    }
-//
-
     /**
      * Workerのエントリポイント
      */
@@ -229,12 +213,11 @@ class InProcForegroundWorker(context: Context, params: WorkerParameters) : Corou
         val uuid = params.workerKey
         val entry = foregroundWorkerMap[uuid] ?: return Result.failure()
         val processor = NotificationProcessor(applicationContext,params.notificationChannelId,params.notificationChannelName,params.notificationImportance, params.notificationId)
-        val initialNotification = processor.message(params.notificationTitle,params.notificationText,params.resolvedIconId,true).build()
-//        val initialNotification = createNotification(params.notificationChannelId, params.notificationChannelName)
+        val notification = processor.initialNotification(params.notificationTitle,params.notificationText,params.resolvedIconId)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            setForeground(ForegroundInfo(params.notificationId,initialNotification,ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC))
+            setForeground(ForegroundInfo(params.notificationId,notification,ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC))
         } else {
-            setForeground(ForegroundInfo(params.notificationId,initialNotification))
+            setForeground(ForegroundInfo(params.notificationId,notification))
         }
         entry.execute(NotificationSink(processor, params))
         return Result.success()
@@ -245,30 +228,22 @@ class InProcForegroundWorker(context: Context, params: WorkerParameters) : Corou
      * Workerからラムダに渡され、ラムダ側から通知の更新を行うために利用される。
      */
     private inner class NotificationSink(val processor: NotificationProcessor, val params:ForegroundWorkerParams) : INotificationSink {
-        override fun notify(
-            completed: Boolean,
-            title: String?,
-            text: String?,
-            icon: Int,
-            progressInPercent: Int
-        ) {
-            notify(completed) { builder ->
-                if (title != null) builder.setContentTitle(title)
-                if (text != null) builder.setContentText(text)
-                if (icon != -1) builder.setSmallIcon(icon)
-                if (progressInPercent >= 0 && progressInPercent <= 100) {
-                    builder.setProgress(100, progressInPercent, false)
-                }
-            }
+
+        override fun message(completed: Boolean, title: String?, text: String?, icon: Int) {
+            processor.message(
+                title ?:params.notificationTitle,
+                text ?: params.notificationText,
+                if(icon>0) icon else params.resolvedIconId,
+                !completed)
         }
 
-        override fun notify(
-            completed: Boolean,
-            prepare: (NotificationCompat.Builder) -> Unit
-        ) {
-            val builder = processor.message(params.notificationTitle,params.notificationText,params.resolvedIconId,!completed)
-            prepare(builder)
-            processor.notify(builder.build())
+        override fun progress(completed: Boolean, progressInPercent: Int, title: String?, text: String?, icon: Int) {
+            processor.progress(
+                progressInPercent,
+                title ?:params.notificationTitle,
+                text ?: params.notificationText,
+                if(icon>0) icon else params.resolvedIconId,
+                !completed)
         }
     }
 }

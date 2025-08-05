@@ -3,6 +3,7 @@ package io.github.toyota32k.worker.sample
 import android.content.Context
 import androidx.work.Data
 import androidx.work.WorkerParameters
+import io.github.toyota32k.utils.NamedMutex
 import io.github.toyota32k.utils.worker.NotificationProcessor
 import io.github.toyota32k.utils.worker.UtTaskWorker
 import io.github.toyota32k.utils.worker.WorkerParams
@@ -31,35 +32,37 @@ class DemoWorker(context: Context, params: WorkerParameters) : UtTaskWorker(cont
         val text = "Running demo task"
         val icon = NotificationProcessor.DEFAULT_DOWNLOAD_ICON
         val params = DemoParams(inputData)
+        val taskName =
         if (params.foreground) {
             enableForeground(title, text, icon)
+            "demoWorkerTaskInForeground"
+        } else {
+            "demoWorkerTask"
         }
-        val dialogViewModel = showModelessDialog<ProgressDialog.ProgressViewModel>("demoTask") { vm->
-            ProgressDialog()
-        }
-        val finished = MutableStateFlow(false)
-        var cancelled = false
-        dialogViewModel.onCancel {
-            cancelled = true
-            finished.value = true
-        }
-        fun progress(current: Long, total: Long) {
-            val percent = dialogViewModel.setProgress(current, total)
-            if (params.foreground) {
-                notifyProgress(current==total, percent)
+        withModelessDialog<ProgressDialog.ProgressViewModel>(
+            taskName, dialogSource = { ProgressDialog() }) { dialogViewModel ->
+            val finished = MutableStateFlow(false)
+            var cancelled = false
+            dialogViewModel.onCancel {
+                cancelled = true
+                finished.value = true
             }
-        }
-        for (i in 1..params.durationInSeconds) {
-            delay(1000) // 1秒待機
-            progress(i, params.durationInSeconds)
-            if (cancelled) {
-                break
+            fun progress(current: Long, total: Long) {
+                val percent = dialogViewModel.setProgress(current, total)
+                if (params.foreground) {
+                    notifyProgress(current == total, percent)
+                }
             }
+            for (i in 1..params.durationInSeconds) {
+                delay(1000) // 1秒待機
+                progress(i, params.durationInSeconds)
+                if (cancelled) {
+                    break
+                }
+            }
+            dialogViewModel.complete()
+            finished.first { it } // 完了を待つ
         }
-        dialogViewModel.complete()
-        finished.first { it } // 完了を待つ
-        dialogViewModel.closeDialog(false)
-
-        return Result.success()
+        return succeeded()
     }
 }

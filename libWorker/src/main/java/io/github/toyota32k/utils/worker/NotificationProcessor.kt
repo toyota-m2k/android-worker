@@ -38,11 +38,15 @@ class NotificationProcessor(
         }
     }
 
-    fun message(
+    var prevPercent: Int = -1
+    var prevTick: Long = 0L
+
+    private fun prepare(
         title: String,
         text: String,
         icon: Int,
-        onGoing:Boolean=true): NotificationCompat.Builder {
+        progressInPercent: Int = -1,
+        onGoing:Boolean=true) : NotificationCompat.Builder {
         return NotificationCompat.Builder(applicationContext, channelId)
             .apply {
                 if (title.isNotEmpty()) {
@@ -51,39 +55,63 @@ class NotificationProcessor(
                 if( text.isNotEmpty()) {
                     setContentText(text)
                 }
+                if (progressInPercent>=0) {
+                    setProgress(100, progressInPercent, false) // プログレスバーを表示
+                }
             }
             .setSmallIcon(icon)
-            .setOngoing(onGoing) // ユーザーがスワイプで消せないようにする
+            .setOngoing(onGoing)
+    }
+
+    private fun NotificationCompat.Builder.notify() {
+        val notificationManager = applicationContext.getSystemService(NotificationManager::class.java)
+        notificationManager.notify(notificationId, this.build())
+    }
+
+    fun initialNotification(
+        title: String,
+        text: String,
+        icon: Int): Notification {
+        return prepare(title, text, icon).build()
+    }
+
+    fun message(
+        title: String,
+        text: String,
+        icon: Int,
+        onGoing:Boolean=true) {
+        prepare(title, text, icon, onGoing=onGoing).notify()
     }
     fun message(
         title: String,
         text: String,
         uploading:Boolean,
-        onGoing:Boolean=true): NotificationCompat.Builder {
-        return message(title, text, if(uploading) DEFAULT_UPLOAD_ICON else DEFAULT_DOWNLOAD_ICON, onGoing)
+        onGoing:Boolean=true) {
+        message(title, text, if(uploading) DEFAULT_UPLOAD_ICON else DEFAULT_DOWNLOAD_ICON, onGoing)
     }
     fun progress(
+        progressInPercent: Int,
         title: String,
         text: String,
         icon: Int,
-        progressInPercent: Int,
         onGoing:Boolean=true
-    ): NotificationCompat.Builder {
-        return message(title, text, icon, onGoing)
-            .setProgress(100, progressInPercent, false) // プログレスバーを表示
+    ) {
+        if (onGoing && (progressInPercent == prevPercent ||  System.currentTimeMillis() - prevTick  < 1000)) {
+            // 進捗率が変化していない、または、１秒以内の再通知 --> 抑制
+            return
+        }
+        prevPercent = progressInPercent
+        prevTick = System.currentTimeMillis()
+        prepare(title, text, icon, progressInPercent, onGoing).notify()
     }
+
     fun progress(
+        progressInPercent: Int,
         title: String,
         text: String,
         uploading:Boolean,
-        progressInPercent: Int,
         onGoing:Boolean=true
-    ): NotificationCompat.Builder {
-        return progress(title, text, if(uploading) DEFAULT_UPLOAD_ICON else DEFAULT_DOWNLOAD_ICON, progressInPercent, onGoing)
-    }
-
-    fun notify(notification: Notification) {
-        val notificationManager = applicationContext.getSystemService(NotificationManager::class.java)
-        notificationManager.notify(notificationId, notification)
+    ) {
+        progress(progressInPercent, title, text, if(uploading) DEFAULT_UPLOAD_ICON else DEFAULT_DOWNLOAD_ICON, onGoing)
     }
 }

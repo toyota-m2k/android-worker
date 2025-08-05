@@ -12,8 +12,10 @@ import io.github.toyota32k.dialog.task.UtDialogViewModel
 import io.github.toyota32k.dialog.task.getViewModel
 import io.github.toyota32k.utils.IDisposable
 import io.github.toyota32k.worker.sample.databinding.DialogProgressBinding
+import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 
 class ProgressDialog : UtDialogEx() {
     class ProgressViewModel : UtDialogViewModel() {
@@ -37,29 +39,22 @@ class ProgressDialog : UtDialogEx() {
         }
 
         fun closeDialog(positive:Boolean) {
-            launchSubTask {
-                withOwner {
-                    closeCommand.invoke(positive)
-                }
+            MainScope().launch {
+                closeCommand.invoke(positive)
             }
         }
 
         fun onCancel(fn: () -> Unit): IDisposable {
             return cancelCommand.bindForever {
                 fn()
-                closeCommand.invoke(false)
             }
-        }
-
-        override fun onCleared() {
-            super.onCleared()
-            closeCommand
         }
     }
     private val viewModel by lazy { getViewModel<ProgressViewModel>() }
     private lateinit var controls: DialogProgressBinding
 
     override fun preCreateBodyView() {
+//        isDialog = false
         gravityOption = GravityOption.CENTER
         noHeader = true
         noFooter = true

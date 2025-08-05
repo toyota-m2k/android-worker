@@ -14,6 +14,7 @@ import androidx.lifecycle.viewModelScope
 import io.github.toyota32k.binder.Binder
 import io.github.toyota32k.binder.command.LiteUnitCommand
 import io.github.toyota32k.binder.command.bindCommand
+import io.github.toyota32k.binder.editIntBinding
 import io.github.toyota32k.binder.intBinding
 import io.github.toyota32k.dialog.broker.UtPermissionBroker
 import io.github.toyota32k.dialog.mortal.UtMortalActivity
@@ -43,13 +44,14 @@ class MainActivity : UtMortalActivity() {
             UtImmortalTask.launchTask("inProcWorkerDemo") {
                 try {
                     val dialogViewModel = createViewModel<ProgressDialog.ProgressViewModel>()
+                    var cancelled = false
                     immortalCoroutineScope.launch {
                         showDialog(taskName) { ProgressDialog() }
+                        cancelled = true
                     }
 
-                    var cancelled = false
                     dialogViewModel.onCancel {
-                        cancelled = true
+                        dialogViewModel.closeDialog(false)
                     }
                     inProcWorker(getApplication<Application>().applicationContext) {
                         fun progress(current: Long, total: Long) {
@@ -59,7 +61,6 @@ class MainActivity : UtMortalActivity() {
                             delay(1000) // 1秒待機
                             progress(i, duration.value.inWholeSeconds)
                             if (cancelled) {
-                                dialogViewModel.closeDialog(false)
                                 break
                             }
                         }
@@ -82,24 +83,24 @@ class MainActivity : UtMortalActivity() {
                 }
                 try {
                     val dialogViewModel = createViewModel<ProgressDialog.ProgressViewModel>()
+                    var cancelled = false
                     immortalCoroutineScope.launch {
                         showDialog(taskName) { ProgressDialog() }
+                        cancelled = true
                     }
 
-                    var cancelled = false
                     dialogViewModel.onCancel {
-                        cancelled = true
+                        dialogViewModel.closeDialog(false)
                     }
                     inProcForegroundWorker(getApplication<Application>().applicationContext, "Foreground Worker", "Processing...", uploading=false) { sink->
                         fun progress(current: Long, total: Long) {
                             val percent = dialogViewModel.setProgress(current, total)
-                            sink.notify(current==total, progressInPercent=percent)
+                            sink.progress(current==total, progressInPercent=percent)
                         }
                         for (i in 1..duration.value.inWholeSeconds) {
                             delay(1000) // 1秒待機
                             progress(i, duration.value.inWholeSeconds)
                             if (cancelled) {
-                                dialogViewModel.closeDialog(false)
                                 break
                             }
                         }
@@ -144,7 +145,7 @@ class MainActivity : UtMortalActivity() {
         }
         binder
             .owner(this)
-            .intBinding(controls.durationInput, viewModel.durationInt)
+            .editIntBinding(controls.durationInput, viewModel.durationInt)
             .bindCommand(LiteUnitCommand(viewModel::inProcWorkerDemo), controls.inProcWorkerDemo)
             .bindCommand(LiteUnitCommand(viewModel::inProcForegroundWorkerDemo), controls.inProcFgWorkerDemo)
             .bindCommand(LiteUnitCommand(viewModel::utTaskWorkerDemo), controls.utTaskWorkerDemo)
