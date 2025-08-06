@@ -36,6 +36,7 @@ import java.util.UUID
  *   - プロセスが再起動するとWorkerを再起動する。
  *   - doWork()からUI（ダイアログやメッセージボックス）を表示できる。
  *   - ただし、UI側からの監視はできないので、doWork()内で処理が完結する必要がある。
+ *   - UI側からは、実行しているかどうかチェックもできないので、重複実装を禁止するなら doWork()にその手の実装を入れる必要がある。
  */
 abstract class UtTaskWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
     companion object {
@@ -66,26 +67,46 @@ abstract class UtTaskWorker(context: Context, params: WorkerParameters) : Corout
         return Result.success(data)
     }
 
+
     interface IModelessDialog<T:UtDialogViewModel> {
+        val taskName:String
         val viewModel:T
 
         @get:MainThread
         @set:MainThread
         var keepModelessDialog:Boolean
 
-        @MainThread
         fun close(positive:Boolean=false)
     }
-    protected class ModelessDialogInfo<T:UtDialogViewModel>: IModelessDialog<T> {
+
+    class ModelessDialogInfo<T:UtDialogViewModel>(override val taskName:String): IModelessDialog<T> {
         override lateinit var viewModel:T
         var dialog:UtDialog? = null
         override var keepModelessDialog:Boolean = true
         override fun close(positive: Boolean) {
-            keepModelessDialog = false
-            dialog?.complete(if(positive) IUtDialog.Status.POSITIVE else IUtDialog.Status.NEGATIVE)
-            dialog = null
+            logger.debug("modeless dialog closing... (taskName=$taskName, positive=$positive)")
+            UtImmortalTask.launchTask("$taskName.close") {
+                withOwner {
+                    keepModelessDialog = false
+                    dialog?.complete(if (positive) IUtDialog.Status.POSITIVE else IUtDialog.Status.NEGATIVE)
+                    dialog = null
+                    logger.debug("modeless dialog closed. (taskName=$taskName, positive=$positive)")
+                }
+            }
         }
     }
+
+    inline fun <T:UtDialogViewModel> IModelessDialog<T>.executeOn(action: (T)->Unit) {
+        try {
+            logger.debug("modeless dialog action starting... (taskName=$taskName)")
+            action(viewModel)
+            logger.debug("modeless dialog action completed. (taskName=$taskName)")
+        } finally {
+            close()
+        }
+        return
+    }
+
 
     /**
      * モードレスダイアログを表示する。（キャンセルボタン付きプログレスダイアログを想定）
@@ -102,7 +123,7 @@ abstract class UtTaskWorker(context: Context, params: WorkerParameters) : Corout
             return null
         }
         val event = FlowableEvent()
-        val info = ModelessDialogInfo<T>()
+        val info = ModelessDialogInfo<T>(taskName)
         UtImmortalTask.launchTask(taskName) {
             info.viewModel = UtDialogViewModel.create(T::class.java, this)
             event.set()
@@ -139,29 +160,6 @@ abstract class UtTaskWorker(context: Context, params: WorkerParameters) : Corout
         return info
     }
 
-    /**
-     * モードレスダイアログを表示した状態で action を実行する。
-     * @param taskName タスク名
-     * @param dialogSource ダイアログの生成
-     * @param action 処理内容
-     * @return true: 実行した / false: 指定されたタスク名が実行中のため何もしなかった
-     */
-    protected suspend inline fun <reified T: UtDialogViewModel> withModelessDialog(
-        taskName:String,
-        noinline dialogSource:(UtDialogOwner)-> UtDialog,
-        noinline action:suspend (viewModel:T)->Unit
-        ):Boolean
-    {
-        val modeless = showModelessDialog<T>(taskName, dialogSource) ?: return false
-        try {
-            action(modeless.viewModel)
-        } finally {
-            MainScope().launch {
-                modeless.close()
-            }
-        }
-        return true
-    }
 
     protected fun launchTask(taskName:String=this::class.java.name, callback:suspend UtImmortalTaskBase.()->Unit) = UtImmortalTask.launchTask(taskName, null, false, callback)
     protected suspend fun awaitTask(taskName:String=this::class.java.name, callback:suspend UtImmortalTaskBase.()->Unit) = UtImmortalTask.awaitTask(taskName, null, false,callback)
@@ -190,8 +188,9 @@ abstract class UtTaskWorker(context: Context, params: WorkerParameters) : Corout
      * @param notificationId 通知ID... デフォルト: 1
      * @param channelId 通知チャンネルID（省略可）
      * @param channelName 通知チャンネル名(省略可）
+     * @return true: 処理継続可 / false: 権限がないので処理継続不可
      */
-    protected suspend fun enableForeground(title:String, text:String, icon:Int, importance:Int= NotificationProcessor.DEFAULT_IMPORTANCE, notificationId:Int=1, channelId:String= NotificationProcessor.DEFAULT_CHANNEL_ID, channelName:String=NotificationProcessor.DEFAULT_CHANNEL_NAME ) {
+    protected suspend fun enableForeground(title:String, text:String, icon:Int, importance:Int= NotificationProcessor.DEFAULT_IMPORTANCE, notificationId:Int=1, channelId:String= NotificationProcessor.DEFAULT_CHANNEL_ID, channelName:String=NotificationProcessor.DEFAULT_CHANNEL_NAME ):Boolean {
         assert(notificationId>0)
         assert(!foregroundEnabled)
 
@@ -199,14 +198,21 @@ abstract class UtTaskWorker(context: Context, params: WorkerParameters) : Corout
         notificationText = text
         notificationIcon = icon
 
+        if (!NotificationProcessor.isPermitted(applicationContext)) {
+            return NotificationProcessor.permissionOption == NotificationProcessor.PermissionOption.AS_BACKGROUND
+        }
+
         foregroundNotifier = NotificationProcessor(applicationContext, channelId, channelName, importance, notificationId).apply {
-            val notification = initialNotification(title, text, icon)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                setForeground(ForegroundInfo(notificationId,notification,ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC))
-            } else {
-                setForeground(ForegroundInfo(notificationId,notification))
+            if (isPermitted) {
+                val notification = initialNotification(title, text, icon)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    setForeground(ForegroundInfo(notificationId, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC))
+                } else {
+                    setForeground(ForegroundInfo(notificationId, notification))
+                }
             }
         }
+        return true
     }
 
     /**

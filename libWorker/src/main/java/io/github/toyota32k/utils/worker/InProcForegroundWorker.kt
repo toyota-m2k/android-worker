@@ -3,7 +3,6 @@ package io.github.toyota32k.utils.worker
 import android.content.Context
 import android.content.pm.ServiceInfo
 import android.os.Build
-import androidx.core.app.NotificationCompat
 import androidx.work.CoroutineWorker
 import androidx.work.Data
 import androidx.work.ForegroundInfo
@@ -19,6 +18,7 @@ import kotlin.coroutines.cancellation.CancellationException
 
 class InProcForegroundWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params)  {
     companion object {
+        val logger = UtTaskWorker.logger
         interface IForegroundWorkerEntry {
             suspend fun execute(notificationSink: INotificationSink)
         }
@@ -126,6 +126,7 @@ class InProcForegroundWorker(context: Context, params: WorkerParameters) : Corou
     }
 
     interface INotificationSink {
+        val foregroundEnabled:Boolean
         fun message(
             completed:Boolean,          // 処理が完了するときは trueにする（-->ユーザーがスワイプして通知を消すことができる）
             title:String?=null,         // nullのときは初期値（ForegroundWorkerParams#notificationTitle)を使用
@@ -212,14 +213,28 @@ class InProcForegroundWorker(context: Context, params: WorkerParameters) : Corou
         val params = ForegroundWorkerParams(inputData)
         val uuid = params.workerKey
         val entry = foregroundWorkerMap[uuid] ?: return Result.failure()
-        val processor = NotificationProcessor(applicationContext,params.notificationChannelId,params.notificationChannelName,params.notificationImportance, params.notificationId)
-        val notification = processor.initialNotification(params.notificationTitle,params.notificationText,params.resolvedIconId)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            setForeground(ForegroundInfo(params.notificationId,notification,ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC))
+        val processor: NotificationProcessor = NotificationProcessor(applicationContext,params.notificationChannelId,params.notificationChannelName,params.notificationImportance, params.notificationId)
+        val sink = if (processor.isPermitted) {
+            // 権限がある、または、PermissionOption.IGNORE の場合はForegroundで実行する
+            val notification = processor.initialNotification(params.notificationTitle, params.notificationText, params.resolvedIconId)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                setForeground(ForegroundInfo(params.notificationId, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC))
+            } else {
+                setForeground(ForegroundInfo(params.notificationId, notification))
+            }
+            logger.info("Worker running in foreground: $uuid")
+            NotificationSink(processor, params)
+        } else if (NotificationProcessor.permissionOption == NotificationProcessor.PermissionOption.DENY) {
+            // 権限がない、且つ、PermissionOption.DENY の場合はWorkerを実行しない
+            logger.error("Worker denied due to missing notification permission: $uuid")
+            return Result.failure()
         } else {
-            setForeground(ForegroundInfo(params.notificationId,notification))
+            // 権限がない、且つ、PermissionOption.AS_BACKGROUND の場合はバックグラウンドで実行する
+            logger.warn("Worker running in background due to missing notification permission: $uuid")
+            NotificationSink(null, params)
         }
-        entry.execute(NotificationSink(processor, params))
+        // Workerのエントリポイントを実行する
+        entry.execute(sink)
         return Result.success()
     }
 
@@ -227,10 +242,12 @@ class InProcForegroundWorker(context: Context, params: WorkerParameters) : Corou
      * INotificationSinkの実装
      * Workerからラムダに渡され、ラムダ側から通知の更新を行うために利用される。
      */
-    private inner class NotificationSink(val processor: NotificationProcessor, val params:ForegroundWorkerParams) : INotificationSink {
+    private inner class NotificationSink(val processor: NotificationProcessor?, val params:ForegroundWorkerParams) : INotificationSink {
+        override val foregroundEnabled: Boolean
+            get() = processor != null
 
         override fun message(completed: Boolean, title: String?, text: String?, icon: Int) {
-            processor.message(
+            processor?.message(
                 title ?:params.notificationTitle,
                 text ?: params.notificationText,
                 if(icon>0) icon else params.resolvedIconId,
@@ -238,7 +255,7 @@ class InProcForegroundWorker(context: Context, params: WorkerParameters) : Corou
         }
 
         override fun progress(completed: Boolean, progressInPercent: Int, title: String?, text: String?, icon: Int) {
-            processor.progress(
+            processor?.progress(
                 progressInPercent,
                 title ?:params.notificationTitle,
                 text ?: params.notificationText,

@@ -28,7 +28,7 @@ import java.util.UUID
  */
 class InProcWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params)  {
     companion object {
-        val logger = UtLog("InProcWorker")
+        val logger = UtTaskWorker.logger
 
         interface IWorkerEntry {
             suspend fun execute()

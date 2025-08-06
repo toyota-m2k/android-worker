@@ -3,6 +3,8 @@ package io.github.toyota32k.worker.sample
 import android.content.Context
 import androidx.work.Data
 import androidx.work.WorkerParameters
+import io.github.toyota32k.dialog.task.UtImmortalTask
+import io.github.toyota32k.dialog.task.showConfirmMessageBox
 import io.github.toyota32k.utils.NamedMutex
 import io.github.toyota32k.utils.worker.NotificationProcessor
 import io.github.toyota32k.utils.worker.UtTaskWorker
@@ -32,15 +34,19 @@ class DemoWorker(context: Context, params: WorkerParameters) : UtTaskWorker(cont
         val text = "Running demo task"
         val icon = NotificationProcessor.DEFAULT_DOWNLOAD_ICON
         val params = DemoParams(inputData)
-        val taskName =
-        if (params.foreground) {
-            enableForeground(title, text, icon)
+        val taskName = if (params.foreground) {
+            if (!enableForeground(title, text, icon)) {
+                UtImmortalTask.awaitTask("demoWorkerTaskInForeground") {
+                    showConfirmMessageBox("Forground Worker", "Foreground notification is not allowed.")
+                }
+                return error("Failed to enable foreground notification")
+            }
             "demoWorkerTaskInForeground"
         } else {
             "demoWorkerTask"
         }
-        withModelessDialog<ProgressDialog.ProgressViewModel>(
-            taskName, dialogSource = { ProgressDialog() }) { dialogViewModel ->
+        val modeless = showModelessDialog<ProgressDialog.ProgressViewModel>(taskName) { ProgressDialog() } ?: return error("Failed to show dialog")
+        modeless.executeOn { dialogViewModel ->
             val finished = MutableStateFlow(false)
             var cancelled = false
             dialogViewModel.onCancel {

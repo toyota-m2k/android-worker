@@ -6,6 +6,7 @@ import android.app.NotificationManager
 import android.content.Context
 import android.os.Build
 import androidx.core.app.NotificationCompat
+import io.github.toyota32k.dialog.broker.UtPermissionBroker
 
 class NotificationProcessor(
     val applicationContext: Context,
@@ -15,11 +16,22 @@ class NotificationProcessor(
     val notificationId: Int = 1,
 ) {
     companion object {
+        var permissionOption:PermissionOption = PermissionOption.IGNORE
         const val DEFAULT_CHANNEL_ID = "worker_notification_channel2"
         const val DEFAULT_CHANNEL_NAME = "Worker Channel2"
         val DEFAULT_IMPORTANCE = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) NotificationManager.IMPORTANCE_LOW else 2
         const val DEFAULT_UPLOAD_ICON:Int = android.R.drawable.stat_sys_upload
         const val DEFAULT_DOWNLOAD_ICON:Int = android.R.drawable.stat_sys_download
+        fun isPermitted(context: Context): Boolean {
+            // Android 8.0 (API 26)以降は通知チャンネルが必要
+            return permissionOption== PermissionOption.IGNORE || Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU || UtPermissionBroker.isPermitted(context, android.Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
+
+    enum class PermissionOption {
+        IGNORE,             // 権限の状態に関わらず フォアグラウンドで実行する
+        AS_BACKGROUND,      // 権限がない場合はバックグラウンドで実行する
+        DENY,               // 権限がなければ Workerを実行しない
     }
 
     init {
@@ -37,6 +49,9 @@ class NotificationProcessor(
             notificationManager.createNotificationChannel(channel)
         }
     }
+
+    val isPermitted: Boolean
+        get() = isPermitted(applicationContext)
 
     var prevPercent: Int = -1
     var prevTick: Long = 0L
