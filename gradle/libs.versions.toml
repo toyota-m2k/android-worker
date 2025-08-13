@@ -12,7 +12,7 @@ material = "1.12.0"
 activity = "1.10.1"
 constraintlayout = "2.2.1"
 work = "2.10.3"
-androidDialog = "5.10.9"
+androidDialog = "5.11.0"
 androidBinding = "1.9.9"
 
 [libraries]
