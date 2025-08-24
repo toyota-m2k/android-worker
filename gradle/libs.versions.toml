@@ -1,9 +1,9 @@
 [versions]
 #plugins
-kotlin = "2.2.0"
-agp = "8.12.0"
+kotlin = "2.2.10"
+agp = "8.12.1"
 
-coreKtx = "1.16.0"
+coreKtx = "1.17.0"
 junit = "4.13.2"
 junitVersion = "1.3.0"
 espressoCore = "3.7.0"
@@ -12,8 +12,8 @@ material = "1.12.0"
 activity = "1.10.1"
 constraintlayout = "2.2.1"
 work = "2.10.3"
-androidDialog = "5.11.0"
-androidBinding = "1.9.9"
+androidDialog = "6.0.0"
+androidBinding = "1.9.10"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
