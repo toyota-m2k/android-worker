@@ -12,8 +12,8 @@ material = "1.13.0"
 activity = "1.11.0"
 constraintlayout = "2.2.1"
 work = "2.10.5"
-androidDialog = "6.1.1"
-androidBinding = "1.9.12"
+androidDialog = "6.2.0"
+androidBinding = "1.9.13"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
