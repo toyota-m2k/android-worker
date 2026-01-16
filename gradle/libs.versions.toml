@@ -1,7 +1,6 @@
 [versions]
 #plugins
-kotlin = "2.3.0"
-agp = "8.13.2"
+agp = "9.0.0"
 
 coreKtx = "1.17.0"
 junit = "4.13.2"
@@ -31,6 +30,5 @@ android-binding = { module = "com.github.toyota-m2k:android-binding", version.re
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
-kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 android-library = { id = "com.android.library", version.ref = "agp" }
 
