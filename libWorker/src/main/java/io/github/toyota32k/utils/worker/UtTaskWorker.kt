@@ -19,7 +19,7 @@ import io.github.toyota32k.dialog.UtDialogOwner
 import io.github.toyota32k.dialog.mortal.UtMortalActivity
 import io.github.toyota32k.dialog.task.UtDialogViewModel
 import io.github.toyota32k.dialog.task.UtImmortalTask
-import io.github.toyota32k.dialog.task.UtImmortalTaskBase
+import io.github.toyota32k.dialog.task.IUtImmortalTask
 import io.github.toyota32k.dialog.task.UtImmortalTaskManager
 import io.github.toyota32k.dialog.task.getOwnerAsActivity
 import io.github.toyota32k.dialog.task.withActivity
@@ -150,7 +150,7 @@ abstract class UtTaskWorker(context: Context, params: WorkerParameters) : Corout
                     )
                     revive++
                 } catch(e: Throwable) {
-                    resumeTask(false)
+                    resumeTask(taskName, false)
                     break
                 }
             }
@@ -161,13 +161,14 @@ abstract class UtTaskWorker(context: Context, params: WorkerParameters) : Corout
     }
 
 
-    protected fun launchTask(taskName:String=this::class.java.name, callback:suspend UtImmortalTaskBase.()->Unit) = UtImmortalTask.launchTask(taskName, null, false, callback)
-    protected suspend fun awaitTask(taskName:String=this::class.java.name, callback:suspend UtImmortalTaskBase.()->Unit) = UtImmortalTask.awaitTask(taskName, null, false,callback)
-    protected suspend fun <T> awaitTaskResult(taskName:String=this::class.java.name, callback:suspend UtImmortalTaskBase.()->T):T = UtImmortalTask.awaitTaskResult<T>(taskName, false, callback)
-    protected suspend fun <T> awaitTaskResult(defValue:T, taskName:String=this::class.java.name, callback:suspend UtImmortalTaskBase.()->T):T = UtImmortalTask.awaitTaskResult<T>(defValue, taskName, false, callback)
+    protected fun launchTask(taskName:String=this::class.java.name, callback:suspend IUtImmortalTask.()->Unit) = UtImmortalTask.launchTask(taskName, callback)
+    protected suspend fun awaitTask(taskName:String=this::class.java.name, callback:suspend IUtImmortalTask.()->Unit) = UtImmortalTask.awaitTask(taskName, callback)
+    protected suspend fun awaitTaskCatching(taskName:String=this::class.java.name, callback:suspend IUtImmortalTask.()->Unit) = UtImmortalTask.awaitTaskCatching(taskName, callback)
+    protected suspend fun <T> awaitTaskResult(taskName:String=this::class.java.name, callback:suspend IUtImmortalTask.()->T):T = UtImmortalTask.awaitTaskResult<T>(taskName, callback)
+    protected suspend fun <T> safeAwaitTaskResult(defValue:T, taskName:String=this::class.java.name, callback:suspend IUtImmortalTask.()->T):T = UtImmortalTask.awaitTaskResultCatching<T>(taskName, defValue, callback)
     protected suspend inline fun <reified T: FragmentActivity, R> withActivity(fn: (T)->R):R = UtImmortalTaskManager.mortalInstanceSource.withActivity<T,R>(fn)
-    protected suspend fun getMortalActivity(): UtMortalActivity? = UtImmortalTaskManager.mortalInstanceSource.getOwnerAsActivity()
-    protected suspend inline fun <R> withMortalActivity(fn: (UtMortalActivity)->R):R = fn(getMortalActivity() ?: throw IllegalStateException("activity is not available."))
+    protected suspend fun getMortalActivity(): UtMortalActivity = UtImmortalTaskManager.mortalInstanceSource.getOwnerAsActivity()
+    protected suspend inline fun <R> withMortalActivity(fn: (UtMortalActivity)->R):R = fn(getMortalActivity())
 
     // endregion
 

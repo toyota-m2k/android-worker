@@ -15,11 +15,11 @@ import io.github.toyota32k.binder.Binder
 import io.github.toyota32k.binder.command.LiteUnitCommand
 import io.github.toyota32k.binder.command.bindCommand
 import io.github.toyota32k.binder.editIntBinding
-import io.github.toyota32k.binder.intBinding
 import io.github.toyota32k.dialog.broker.UtPermissionBroker
 import io.github.toyota32k.dialog.mortal.UtMortalActivity
 import io.github.toyota32k.dialog.task.UtImmortalTask
 import io.github.toyota32k.dialog.task.createViewModel
+import io.github.toyota32k.dialog.task.withActivity
 import io.github.toyota32k.logger.UtLog
 import io.github.toyota32k.utils.worker.InProcForegroundWorker.Companion.inProcForegroundWorker
 import io.github.toyota32k.utils.worker.InProcWorker.Companion.inProcWorker
