@@ -5,7 +5,6 @@ import androidx.work.Data
 import androidx.work.WorkerParameters
 import io.github.toyota32k.dialog.task.UtImmortalTask
 import io.github.toyota32k.dialog.task.showConfirmMessageBox
-import io.github.toyota32k.utils.NamedMutex
 import io.github.toyota32k.utils.worker.NotificationProcessor
 import io.github.toyota32k.utils.worker.UtTaskWorker
 import io.github.toyota32k.utils.worker.WorkerParams
@@ -37,7 +36,7 @@ class DemoWorker(context: Context, params: WorkerParameters) : UtTaskWorker(cont
         val taskName = if (params.foreground) {
             if (!enableForeground(title, text, icon)) {
                 UtImmortalTask.awaitTask("demoWorkerTaskInForeground") {
-                    showConfirmMessageBox("Forground Worker", "Foreground notification is not allowed.")
+                    showConfirmMessageBox("Foreground Worker", "Foreground notification is not allowed.")
                 }
                 return error("Failed to enable foreground notification")
             }
