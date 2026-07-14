@@ -8,7 +8,7 @@ plugins {
 
 configure<LibraryExtension> {
     namespace = "io.github.toyota32k.worker"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         minSdk = 23
@@ -27,8 +27,8 @@ configure<LibraryExtension> {
         }
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
+        sourceCompatibility = JavaVersion.VERSION_21
+        targetCompatibility = JavaVersion.VERSION_21
     }
     publishing {
         singleVariant("release") {
@@ -38,9 +38,7 @@ configure<LibraryExtension> {
 }
 
 kotlin {
-    compilerOptions {
-        jvmTarget.set(JvmTarget.JVM_17)
-    }
+    jvmToolchain(21)
 }
 
 dependencies {
