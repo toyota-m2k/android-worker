@@ -8,7 +8,10 @@ plugins {
 
 configure<LibraryExtension> {
     namespace = "io.github.toyota32k.worker"
-    compileSdk = 37
+    compileSdk {
+        version = release(37)
+        compileSdkMinor = 1
+    }
 
     defaultConfig {
         minSdk = 23
@@ -49,7 +52,8 @@ dependencies {
     api(libs.androidx.work.runtime.ktx)
     implementation(libs.material)
 
-//    implementation(libs.android.utilities)
+    implementation(libs.android.logger)
+    implementation(libs.android.utilities)
     implementation(libs.android.dialog)
 
     testImplementation(libs.junit)
@@ -69,6 +73,7 @@ publishing {
 
             afterEvaluate {
                 from(components["release"])
+                artifact(tasks.named("sourceReleaseJar"))
             }
         }
     }

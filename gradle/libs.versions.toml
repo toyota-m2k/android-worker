@@ -1,6 +1,6 @@
 [versions]
 #plugins
-agp = "9.2.1"
+agp = "9.3.0"
 
 coreKtx = "1.19.0"
 junit = "4.13.2"
@@ -11,8 +11,10 @@ material = "1.14.0"
 activity = "1.13.0"
 constraintlayout = "2.2.1"
 work = "2.11.2"
-androidDialog = "7.2.0"
-androidBinding = "1.15.0"
+androidLogger = "2.2.3"
+androidUtilities = "4.16.3"
+androidDialog = "7.2.1"
+androidBinding = "1.15.3"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -25,8 +27,10 @@ androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version
 material = { group = "com.google.android.material", name = "material", version.ref = "material" }
 androidx-activity = { group = "androidx.activity", name = "activity", version.ref = "activity" }
 androidx-constraintlayout = { group = "androidx.constraintlayout", name = "constraintlayout", version.ref = "constraintlayout" }
-android-dialog = { module = "com.github.toyota-m2k:android-dialog", version.ref = "androidDialog" }
+android-logger = { module = "com.github.toyota-m2k:android-logger", version.ref = "androidLogger" }
+android-utilities = { module = "com.github.toyota-m2k:android-utilities", version.ref = "androidUtilities" }
 android-binding = { module = "com.github.toyota-m2k:android-binding", version.ref = "androidBinding" }
+android-dialog = { module = "com.github.toyota-m2k:android-dialog", version.ref = "androidDialog" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
